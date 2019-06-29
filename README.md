@@ -9,7 +9,7 @@
 
 ## DrainSafe
 
-Azure has a scheduled events feature https://docs.microsoft.com/en-us/azure/virtual-machines/linux/scheduled-events which lets safely drain the workload based on planned/unplanned maintenance events. 
+Azure has a [scheduled events feature](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/scheduled-events) which lets safely drain the workload based on planned/unplanned maintenance events. 
 
 ## Design
 
@@ -25,14 +25,14 @@ Following events are defined based on which controllers perform certain actions
 
 ### Scheduled Events Controller
 
-- Runs as a daemonset which watches scheduled events for virtual machine its running on.
+- Runs as a daemonset which watches [scheduled events](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/scheduled-events) for virtual machine its running on.
 - Emits a **Scheduled** Event when a maintenance is scheduled.
 - Emits a **Started** Event when a maintenance is started.
 - Emits a **Running** Event at daemonset startup.
 
 ### Safe drain Controller
 
-- Runs as a controller watches pre defined events mentioned in events section.
+- Runs as a controller watches pre defined [events](#Events).
 - Emits a **Cordoned** Event when node has been corded based on **Scheduled** event.
 - Emits a **Drained** Event when a node has been drained based on **Cordoned** event.
 - Emits a **Uncordoned** Event when node has been uncordened based on **Running** event.
