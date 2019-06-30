@@ -26,10 +26,7 @@ func init() {
 
 func main() {
 	var metricsAddr string
-	var enableLeaderElection bool
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
-		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.Logger(true))
@@ -37,20 +34,19 @@ func main() {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
-		LeaderElection:     enableLeaderElection,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
 
-	err = (&controllers.DrainSafeReconciler{
+	err = (&controllers.ScheduledEventReconciler{
 		Client:   mgr.GetClient(),
-		Log:      ctrl.Log.WithName("controllers").WithName("DrainSafe"),
-		Recorder: mgr.GetEventRecorderFor("drainsafe"),
+		Log:      ctrl.Log.WithName("controllers").WithName("ScheduledEvent"),
+		Recorder: mgr.GetEventRecorderFor("scheduledevent"),
 	}).SetupWithManager(mgr)
 	if err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "DrainSafe")
+		setupLog.Error(err, "unable to create controller", "controller", "ScheduledEvent")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
