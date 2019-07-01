@@ -1,0 +1,18 @@
+title Scheduled Event
+
+ScheduledEventWatcher->Node:Annotate\n**MaintenanceScheduled**
+Node-->DrainSafeController: **MaintenanceScheduled**
+Node<-DrainSafeController: Annotate\n**NodeCordoning**
+DrainSafeController<-DrainSafeController:Cordon Node
+Node<-DrainSafeController: Annotate\n**NodeCordoned**
+Node-->DrainSafeController: **NodeCordoned**
+Node<-DrainSafeController: Annotate\n**NodeDraining**
+DrainSafeController<-DrainSafeController:Drain Node
+Node<-DrainSafeController: Annotate\n**NodeDrained**
+ScheduledEventWatcher<--Node: **NodeDrained**
+ScheduledEventWatcher->ScheduledEventWatcher: Start Maintenance\non Azure
+ScheduledEventWatcher->Node: Annotate\n**MaintenanceStarted**
+[->ScheduledEventWatcher:After Maintenance
+ScheduledEventWatcher->Node: Annotate\n**NodeRunning**
+Node-->DrainSafeController: **NodeRunning**
+DrainSafeController<-DrainSafeController:Uncordon Node
