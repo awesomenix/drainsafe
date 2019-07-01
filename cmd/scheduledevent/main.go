@@ -6,7 +6,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/awesomenix/drainsafe/controllers"
+	"github.com/awesomenix/drainsafe/pkg/controllers"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"

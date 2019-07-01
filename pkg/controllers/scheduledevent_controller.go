@@ -7,7 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/awesomenix/drainsafe/annotations"
+	"github.com/awesomenix/drainsafe/pkg/azure"
+	"github.com/awesomenix/drainsafe/pkg/annotations"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,7 +59,7 @@ func (r *ScheduledEventReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		"Annotations", node.Annotations)
 
 	if maintenance == annotations.Drained {
-		err = approveScheduledEvent(r.vmInstanceName)
+		err = azure.ApproveScheduledEvent(r.vmInstanceName)
 		if err != nil {
 			log.Error(err, "failed to approve scheduled event")
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
@@ -81,9 +82,9 @@ func (r *ScheduledEventReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *ScheduledEventReconciler) startup() error {
 	hostname := os.Getenv("NODE_NAME")
 
-	vmInstanceName, err := getVMInstanceName()
+	vmInstanceName, err := azure.GetVMInstanceName()
 	if err != nil {
-		log.Error(err, "failed to get vm instance name")
+		r.Log.Error(err, "failed to get vm instance name")
 		return err
 	}
 
@@ -104,18 +105,18 @@ func (r *ScheduledEventReconciler) eventWatcher() {
 			node := &corev1.Node{}
 			err := r.Get(context.TODO(), types.NamespacedName{Name: r.hostname}, node)
 			if err != nil {
-				log.Error(err, "failed to get node", "Name", r.hostname)
+				r.Log.Error(err, "failed to get node", "Name", r.hostname)
 				continue
 			}
 			maintenance := node.Annotations[annotations.DrainSafeMaintenance]
-			isScheduled, err := isScheduledEvent(r.vmInstanceName)
+			isScheduled, err := azure.IsScheduledEvent(r.vmInstanceName)
 			if err != nil {
-				log.Error(err, "failed to find scheduled events")
+				r.Log.Error(err, "failed to find scheduled events")
 				continue
 			}
 			if isScheduled {
 				if maintenance != annotations.Running {
-					log.Info("node is under going maintenance, skipping setting annotation", "Maintenance", maintenance)
+					r.Log.Info("node is under going maintenance, skipping setting annotation", "Maintenance", maintenance)
 					continue
 				}
 				r.updateNodeState(node, annotations.Scheduled)
@@ -132,10 +133,10 @@ func (r *ScheduledEventReconciler) updateNodeState(node *corev1.Node, state stri
 	if node.Annotations[annotations.DrainSafeMaintenance] == state {
 		return ctrl.Result{}, nil
 	}
-	log.Info("updating node state", "Current", node.Annotations[annotations.DrainSafeMaintenance], "Desired", state)
+	r.Log.Info("updating node state", "Current", node.Annotations[annotations.DrainSafeMaintenance], "Desired", state)
 	node.Annotations[annotations.DrainSafeMaintenance] = state
 	if err := r.Update(context.TODO(), node); err != nil {
-		log.Error(err, "failed to update node")
+		r.Log.Error(err, "failed to update node")
 		return ctrl.Result{RequeueAfter: 1 * time.Minute}, err
 	}
 	r.Recorder.Eventf(node, "Normal", state, "%s by %s", node.Name, os.Getenv("POD_NAME"))

@@ -7,7 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/awesomenix/drainsafe/annotations"
+	"github.com/awesomenix/drainsafe/pkg/annotations"
+	"github.com/awesomenix/drainsafe/pkg/kubectl"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,7 +35,7 @@ type DrainSafeReconciler struct {
 // Reconcile consumes event
 func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("drainsafe", req.NamespacedName)
+	log := r.Log.WithValues("node", req.NamespacedName)
 
 	// your logic here
 	node := &corev1.Node{}
@@ -51,11 +52,12 @@ func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
+	maintenance := node.Annotations[annotations.DrainSafeMaintenance]
+
 	log.Info("got update event",
 		"Name", node.Name,
+		"Maintenance", maintenance,
 		"Annotations", node.Annotations)
-
-	maintenance := node.Annotations[annotations.DrainSafeMaintenance]
 
 	if maintenance == annotations.Scheduled {
 		return r.updateNodeState(node, annotations.Cordoning)
@@ -63,7 +65,7 @@ func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	if maintenance == annotations.Cordoning {
 		if !node.Spec.Unschedulable {
-			err = Cordon(node.Name)
+			err = kubectl.Cordon(node.Name)
 			if err != nil {
 				log.Error(err, "failed to cordon vm")
 				return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
@@ -77,7 +79,7 @@ func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if maintenance == annotations.Draining {
-		err = Drain(node.Name)
+		err = kubectl.Drain(node.Name)
 		if err != nil {
 			log.Error(err, "failed to drain vm")
 			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
@@ -89,17 +91,18 @@ func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if !node.Spec.Unschedulable {
 			return ctrl.Result{}, nil
 		}
-		err = Uncordon(node.Name)
+		err = kubectl.Uncordon(node.Name)
 		if err != nil {
 			log.Error(err, "failed to cordon vm")
 			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 		}
-		r.Recorder.Eventf(node, "Normal", annotations.Uncordoned, "%s", node.Name)
+		r.Recorder.Eventf(node, "Normal", annotations.Uncordoned, "%s by %s on %s", node.Name, os.Getenv("POD_NAME"), os.Getenv("NODE_NAME"))
 	}
 
 	return ctrl.Result{}, nil
 }
 
+// SetupWithManager called from maanger to register reconciler
 func (r *DrainSafeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
@@ -107,6 +110,7 @@ func (r *DrainSafeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *DrainSafeReconciler) updateNodeState(node *corev1.Node, state string) (ctrl.Result, error) {
+	log := r.Log.WithValues("node", node.Name)
 	if node.Annotations[annotations.DrainSafeMaintenance] == state {
 		return ctrl.Result{}, nil
 	}

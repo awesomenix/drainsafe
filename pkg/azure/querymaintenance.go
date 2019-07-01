@@ -1,6 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license.
-package controllers
+package azure
 
 import (
 	"bytes"
@@ -10,9 +10,15 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
+	"github.com/go-logr/logr"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func getVMInstanceName() (string, error) {
+var log logr.Logger = ctrl.Log.WithName("azure")
+
+// GetVMInstanceName gets current vmss/availability set instance name
+func GetVMInstanceName() (string, error) {
 	// curl -H Metadata:true "http://169.254.169.254/metadata/instance/compute/name?api-version=2019-06-01&format=text"
 	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/instance/compute/name?api-version=2019-06-01&format=text", nil)
 	if err != nil {
@@ -57,7 +63,8 @@ func getVMInstanceName() (string, error) {
 //   ]
 // }
 
-type resourceEvent struct {
+// ScheduledEvent signifies each scheduled event
+type ScheduledEvent struct {
 	EventId      string   `json:"EventId"`
 	EventStatus  string   `json:"EventStatus"`
 	EventType    string   `json:"EventType"`
@@ -66,12 +73,13 @@ type resourceEvent struct {
 	NotBefore    string   `json:"NotBefore"`
 }
 
-type scheduledEvent struct {
-	DocumentIncarnation int             `json:"DocumentIncarnation"`
-	Events              []resourceEvent `json:"Events"`
+// ScheduledEventList list of scheduled events
+type ScheduledEventList struct {
+	DocumentIncarnation int              `json:"DocumentIncarnation"`
+	Events              []ScheduledEvent `json:"Events"`
 }
 
-func getScheduledEvent() (*scheduledEvent, error) {
+func getScheduledEventList() (*ScheduledEventList, error) {
 	// curl -H Metadata:true "http://169.254.169.254/metadata/scheduledevents?api-version=2017-08-01"
 	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/scheduledevents?api-version=2017-08-01", nil)
 	if err != nil {
@@ -96,7 +104,7 @@ func getScheduledEvent() (*scheduledEvent, error) {
 		log.Error(err, "failed to read body")
 		return nil, err
 	}
-	result := &scheduledEvent{}
+	result := &ScheduledEventList{}
 	err = json.Unmarshal([]byte(body), result)
 	if err != nil {
 		log.Error(err, "failed to unmarshal body")
@@ -106,8 +114,8 @@ func getScheduledEvent() (*scheduledEvent, error) {
 	return result, nil
 }
 
-func isScheduledEvent(vmInstanceName string) (bool, error) {
-	result, err := getScheduledEvent()
+func IsScheduledEvent(vmInstanceName string) (bool, error) {
+	result, err := getScheduledEventList()
 	if err != nil {
 		return false, err
 	}
@@ -123,8 +131,8 @@ func isScheduledEvent(vmInstanceName string) (bool, error) {
 	return false, nil
 }
 
-func approveScheduledEvent(vmInstanceName string) error {
-	result, err := getScheduledEvent()
+func ApproveScheduledEvent(vmInstanceName string) error {
+	result, err := getScheduledEventList()
 	if err != nil {
 		return err
 	}
@@ -140,7 +148,7 @@ func approveScheduledEvent(vmInstanceName string) error {
 	return nil
 }
 
-func approveEvent(event *resourceEvent) error {
+func approveEvent(event *ScheduledEvent) error {
 	// curl -H Metadata:true -X POST -d '{"StartRequests": [{"EventId": "F3E6E2D2-E86A-47F0-AA8E-18918049A2B1"}]}' http://169.254.169.254/metadata/scheduledevents?api-version=2017-11-01
 	message := map[string]interface{}{
 		"StartRequests": []map[string]string{
@@ -176,17 +184,17 @@ func approveEvent(event *resourceEvent) error {
 	return nil
 }
 
-func isDisruptive(event *resourceEvent) bool {
+func isDisruptive(event *ScheduledEvent) bool {
 	return event.EventType == "Reboot" ||
 		event.EventType == "Redeploy" ||
 		event.EventType == "Preempt"
 }
 
-func isScheduled(event *resourceEvent) bool {
+func isScheduled(event *ScheduledEvent) bool {
 	return event.EventStatus == "Scheduled"
 }
 
-func isVMScheduled(event *resourceEvent, vmInstanceName string) bool {
+func isVMScheduled(event *ScheduledEvent, vmInstanceName string) bool {
 	if event.ResourceType != "VirtualMachine" {
 		return false
 	}
