@@ -8,7 +8,7 @@ all: manager
 
 # Run tests
 test: generate fmt vet manifests
-	go test ./controllers/... -coverprofile cover.out
+	go test ./pkg/... -coverprofile cover.out
 
 # Build manager binary
 manager: generate fmt vet
@@ -16,7 +16,7 @@ manager: generate fmt vet
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet
-	go run ./main.go
+	go run ./cmd/drainsafe/main.go
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests

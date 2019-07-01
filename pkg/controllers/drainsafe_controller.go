@@ -48,58 +48,7 @@ func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	if node.Annotations == nil {
-		return ctrl.Result{}, nil
-	}
-
-	maintenance := node.Annotations[annotations.DrainSafeMaintenance]
-
-	log.Info("got update event",
-		"Name", node.Name,
-		"Maintenance", maintenance,
-		"Annotations", node.Annotations)
-
-	if maintenance == annotations.Scheduled {
-		return r.updateNodeState(node, annotations.Cordoning)
-	}
-
-	if maintenance == annotations.Cordoning {
-		if !node.Spec.Unschedulable {
-			err = kubectl.Cordon(node.Name)
-			if err != nil {
-				log.Error(err, "failed to cordon vm")
-				return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
-			}
-		}
-		return r.updateNodeState(node, annotations.Cordoned)
-	}
-
-	if maintenance == annotations.Cordoned {
-		return r.updateNodeState(node, annotations.Draining)
-	}
-
-	if maintenance == annotations.Draining {
-		err = kubectl.Drain(node.Name)
-		if err != nil {
-			log.Error(err, "failed to drain vm")
-			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
-		}
-		return r.updateNodeState(node, annotations.Drained)
-	}
-
-	if maintenance == annotations.Running {
-		if !node.Spec.Unschedulable {
-			return ctrl.Result{}, nil
-		}
-		err = kubectl.Uncordon(node.Name)
-		if err != nil {
-			log.Error(err, "failed to cordon vm")
-			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
-		}
-		r.Recorder.Eventf(node, "Normal", annotations.Uncordoned, "%s by %s on %s", node.Name, os.Getenv("POD_NAME"), os.Getenv("NODE_NAME"))
-	}
-
-	return ctrl.Result{}, nil
+	return r.ProcessNodeEvent(node)
 }
 
 // SetupWithManager called from maanger to register reconciler
@@ -120,5 +69,59 @@ func (r *DrainSafeReconciler) updateNodeState(node *corev1.Node, state string) (
 		return ctrl.Result{RequeueAfter: 1 * time.Minute}, err
 	}
 	r.Recorder.Eventf(node, "Normal", state, "%s by %s on %s", node.Name, os.Getenv("POD_NAME"), os.Getenv("NODE_NAME"))
+	return ctrl.Result{}, nil
+}
+
+// ProcessNodeEvent processes node event
+func (r *DrainSafeReconciler) ProcessNodeEvent(node *corev1.Node) (ctrl.Result, error) {
+	if node.Annotations == nil {
+		return ctrl.Result{}, nil
+	}
+
+	log := r.Log.WithValues("node", node.Name)
+	maintenance := node.Annotations[annotations.DrainSafeMaintenance]
+
+	log.Info("got node event",
+		"Name", node.Name,
+		"Maintenance", maintenance,
+		"Annotations", node.Annotations)
+
+	if maintenance == annotations.Scheduled {
+		return r.updateNodeState(node, annotations.Cordoning)
+	}
+
+	if maintenance == annotations.Cordoning {
+		if !node.Spec.Unschedulable {
+			if err := kubectl.Cordon(node.Name); err != nil {
+				log.Error(err, "failed to cordon vm")
+				return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+			}
+		}
+		return r.updateNodeState(node, annotations.Cordoned)
+	}
+
+	if maintenance == annotations.Cordoned {
+		return r.updateNodeState(node, annotations.Draining)
+	}
+
+	if maintenance == annotations.Draining {
+		if err := kubectl.Drain(node.Name); err != nil {
+			log.Error(err, "failed to drain vm")
+			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+		}
+		return r.updateNodeState(node, annotations.Drained)
+	}
+
+	if maintenance == annotations.Running {
+		if !node.Spec.Unschedulable {
+			return ctrl.Result{}, nil
+		}
+		if err := kubectl.Uncordon(node.Name); err != nil {
+			log.Error(err, "failed to cordon vm")
+			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+		}
+		r.Recorder.Eventf(node, "Normal", annotations.Uncordoned, "%s by %s on %s", node.Name, os.Getenv("POD_NAME"), os.Getenv("NODE_NAME"))
+	}
+
 	return ctrl.Result{}, nil
 }
