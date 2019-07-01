@@ -1,7 +1,8 @@
+## DrainSafe <!-- omit in toc -->
 
+Azure has a [scheduled events feature](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/scheduled-events) which lets safely drain the workload based on planned/unplanned maintenance events. 
 
-
-- [DrainSafe](#DrainSafe)
+## Table of Contents <!-- omit in toc -->
 - [Design](#Design)
   - [Events](#Events)
   - [Node Annotations](#Node-Annotations)
@@ -9,11 +10,7 @@
   - [Safe drain Controller](#Safe-drain-Controller)
   - [Sequence](#Sequence)
 
-## DrainSafe
-
-Azure has a [scheduled events feature](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/scheduled-events) which lets safely drain the workload based on planned/unplanned maintenance events. 
-
-## Design
+## Design 
 
 ### Events
 
