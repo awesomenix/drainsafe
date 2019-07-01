@@ -45,6 +45,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
       terminationGracePeriodSeconds: 10
       tolerations:
       - effect: NoSchedule
@@ -87,6 +91,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
       terminationGracePeriodSeconds: 10
       tolerations:
       - effect: NoSchedule

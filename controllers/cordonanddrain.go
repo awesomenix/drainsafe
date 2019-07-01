@@ -67,8 +67,9 @@ func getOptions(vmName string) (*kubectldrain.DrainCmdOptions, error) {
 
 	f := cmdutil.NewFactory(&RESTConfigClientGetter{Config: cfg})
 	drain := kubectldrain.NewCmdDrain(f, streams)
-	args := []string{"--ignore-daemonsets", "--force", "--delete-local-data", "--grace-period 60", vmName}
+	args := []string{vmName}
 	options := kubectldrain.NewDrainCmdOptions(f, streams)
+	drain.SetArgs([]string{"--ignore-daemonsets", "--force", "--delete-local-data", "--grace-period 60"})
 	err = options.Complete(f, drain, args)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error setting up drain")

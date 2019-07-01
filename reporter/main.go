@@ -40,10 +40,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	stopch := ctrl.SetupSignalHandler()
+
 	err = (&controllers.ScheduledEventReconciler{
 		Client:   mgr.GetClient(),
 		Log:      ctrl.Log.WithName("controllers").WithName("ScheduledEvent"),
 		Recorder: mgr.GetEventRecorderFor("scheduledevent"),
+		StopCh:   stopch,
 	}).SetupWithManager(mgr)
 	if err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ScheduledEvent")
@@ -52,7 +55,7 @@ func main() {
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(stopch); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
