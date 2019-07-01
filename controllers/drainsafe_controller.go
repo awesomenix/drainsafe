@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/awesomenix/drainsafe/annotations"
@@ -112,6 +113,6 @@ func (r *DrainSafeReconciler) updateNodeState(node *corev1.Node, state string) (
 		log.Error(err, "failed to update node")
 		return ctrl.Result{RequeueAfter: 1 * time.Minute}, err
 	}
-	r.Recorder.Eventf(node, "Normal", state, "%s", node.Name)
+	r.Recorder.Eventf(node, "Normal", state, "%s by %s on %s", node.Name, os.Getenv("POD_NAME"), os.Getenv("NODE_NAME"))
 	return ctrl.Result{}, nil
 }

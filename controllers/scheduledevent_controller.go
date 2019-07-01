@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
-// DrainSafeReconciler reconciles a DrainSafe object
+// ScheduledEventReconciler reconciles a DrainSafe object
 type ScheduledEventReconciler struct {
 	client.Client
 	Log            logr.Logger
@@ -48,11 +48,14 @@ func (r *ScheduledEventReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		return ctrl.Result{}, nil
 	}
 
+	maintenance := node.Annotations[annotations.DrainSafeMaintenance]
+
 	log.Info("got update event",
 		"Name", node.Name,
+		"Maintenance", maintenance,
 		"Annotations", node.Annotations)
 
-	if node.Annotations[annotations.DrainSafeMaintenance] == annotations.Drained {
+	if maintenance == annotations.Drained {
 		err = approveScheduledEvent(r.vmInstanceName)
 		if err != nil {
 			log.Error(err, "failed to approve scheduled event")
@@ -69,7 +72,7 @@ func (r *ScheduledEventReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Event{}).
+		For(&corev1.Node{}).
 		Complete(r)
 }
 
@@ -102,12 +105,17 @@ func (r *ScheduledEventReconciler) eventWatcher() {
 				log.Error(err, "failed to get node", "Name", r.hostname)
 				continue
 			}
+			maintenance := node.Annotations[annotations.DrainSafeMaintenance]
 			isScheduled, err := isScheduledEvent(r.vmInstanceName)
 			if err != nil {
 				log.Error(err, "failed to find scheduled events")
 				continue
 			}
 			if isScheduled {
+				if maintenance != annotations.Running {
+					log.Info("node is under going maintenance, skipping setting annotation", "Maintenance", maintenance)
+					continue
+				}
 				r.updateNodeState(node, annotations.Scheduled)
 				continue
 			}
@@ -122,11 +130,12 @@ func (r *ScheduledEventReconciler) updateNodeState(node *corev1.Node, state stri
 	if node.Annotations[annotations.DrainSafeMaintenance] == state {
 		return ctrl.Result{}, nil
 	}
+	log.Info("updating node state", "Current", node.Annotations[annotations.DrainSafeMaintenance], "Desired", state)
 	node.Annotations[annotations.DrainSafeMaintenance] = state
 	if err := r.Update(context.TODO(), node); err != nil {
 		log.Error(err, "failed to update node")
 		return ctrl.Result{RequeueAfter: 1 * time.Minute}, err
 	}
-	r.Recorder.Eventf(node, "Normal", state, "%s", node.Name)
+	r.Recorder.Eventf(node, "Normal", state, "%s by %s", node.Name, os.Getenv("POD_NAME"))
 	return ctrl.Result{}, nil
 }
