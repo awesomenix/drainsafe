@@ -16,7 +16,22 @@ import (
 
 var log logr.Logger = ctrl.Log.WithName("kubectl")
 
-func getOptions(vmName string) (*kubectldrain.DrainCmdOptions, error) {
+var _ Client = &client{}
+
+// Client interface for kubernetes
+type Client interface {
+	Drain(vmName string) error
+	Cordon(vmName string) error
+	Uncordon(vmName string) error
+}
+
+type client struct {
+	f       cmdutil.Factory
+	streams genericclioptions.IOStreams
+}
+
+// New creates a new client
+func New() (Client, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return nil, errors.Wrapf(err, "unable to set up client config")
@@ -27,14 +42,20 @@ func getOptions(vmName string) (*kubectldrain.DrainCmdOptions, error) {
 		ErrOut: os.Stderr,
 	}
 
-	f := cmdutil.NewFactory(&RESTConfigClientGetter{Config: cfg})
-	drain := kubectldrain.NewCmdDrain(f, streams)
-	options := kubectldrain.NewDrainCmdOptions(f, streams)
-	err = drain.ParseFlags([]string{"--ignore-daemonsets", "--force", "--delete-local-data", "--grace-period=60"})
+	return &client{
+		f:       cmdutil.NewFactory(&RESTConfigClientGetter{Config: cfg}),
+		streams: streams,
+	}, nil
+}
+
+func (c *client) getOptions(vmName string) (*kubectldrain.DrainCmdOptions, error) {
+	drain := kubectldrain.NewCmdDrain(c.f, c.streams)
+	options := kubectldrain.NewDrainCmdOptions(c.f, c.streams)
+	err := drain.ParseFlags([]string{"--ignore-daemonsets", "--force", "--delete-local-data", "--grace-period=60"})
 	if err != nil {
 		return nil, errors.Wrapf(err, "error parsing flags")
 	}
-	err = options.Complete(f, drain, []string{vmName})
+	err = options.Complete(c.f, drain, []string{vmName})
 	if err != nil {
 		return nil, errors.Wrapf(err, "error setting up drain")
 	}
@@ -43,8 +64,8 @@ func getOptions(vmName string) (*kubectldrain.DrainCmdOptions, error) {
 }
 
 // Cordon cordons  vmname from kubernetes
-func Cordon(vmName string) error {
-	options, err := getOptions(vmName)
+func (c *client) Cordon(vmName string) error {
+	options, err := c.getOptions(vmName)
 	if err != nil {
 		return errors.Wrapf(err, "error getting options")
 	}
@@ -59,7 +80,7 @@ func Cordon(vmName string) error {
 }
 
 // Drain drains vmname from kubernetes
-func Drain(vmName string) error {
+func (c *client) Drain(vmName string) error {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return errors.Wrapf(err, "unable to set up client config")
@@ -85,8 +106,8 @@ func Drain(vmName string) error {
 }
 
 // Uncordon uncordons vmname from kubernetes
-func Uncordon(vmName string) error {
-	options, err := getOptions(vmName)
+func (c *client) Uncordon(vmName string) error {
+	options, err := c.getOptions(vmName)
 	if err != nil {
 		return errors.Wrapf(err, "error getting options")
 	}

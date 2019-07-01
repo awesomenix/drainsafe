@@ -37,7 +37,6 @@ func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("node", req.NamespacedName)
 
-	// your logic here
 	node := &corev1.Node{}
 	err := r.Get(ctx, req.NamespacedName, node)
 	if err != nil {
@@ -48,7 +47,13 @@ func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	return r.ProcessNodeEvent(node)
+	c, err := kubectl.New()
+	if err != nil {
+		log.Error(err, "failed to create new kubectl client")
+		return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+	}
+
+	return r.ProcessNodeEvent(c, node)
 }
 
 // SetupWithManager called from maanger to register reconciler
@@ -73,7 +78,7 @@ func (r *DrainSafeReconciler) updateNodeState(node *corev1.Node, state string) (
 }
 
 // ProcessNodeEvent processes node event
-func (r *DrainSafeReconciler) ProcessNodeEvent(node *corev1.Node) (ctrl.Result, error) {
+func (r *DrainSafeReconciler) ProcessNodeEvent(c kubectl.Client, node *corev1.Node) (ctrl.Result, error) {
 	if node.Annotations == nil {
 		return ctrl.Result{}, nil
 	}
@@ -92,7 +97,7 @@ func (r *DrainSafeReconciler) ProcessNodeEvent(node *corev1.Node) (ctrl.Result, 
 
 	if maintenance == annotations.Cordoning {
 		if !node.Spec.Unschedulable {
-			if err := kubectl.Cordon(node.Name); err != nil {
+			if err := c.Cordon(node.Name); err != nil {
 				log.Error(err, "failed to cordon vm")
 				return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 			}
@@ -105,7 +110,7 @@ func (r *DrainSafeReconciler) ProcessNodeEvent(node *corev1.Node) (ctrl.Result, 
 	}
 
 	if maintenance == annotations.Draining {
-		if err := kubectl.Drain(node.Name); err != nil {
+		if err := c.Drain(node.Name); err != nil {
 			log.Error(err, "failed to drain vm")
 			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 		}
@@ -116,7 +121,7 @@ func (r *DrainSafeReconciler) ProcessNodeEvent(node *corev1.Node) (ctrl.Result, 
 		if !node.Spec.Unschedulable {
 			return ctrl.Result{}, nil
 		}
-		if err := kubectl.Uncordon(node.Name); err != nil {
+		if err := c.Uncordon(node.Name); err != nil {
 			log.Error(err, "failed to cordon vm")
 			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 		}

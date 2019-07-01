@@ -17,10 +17,50 @@ import (
 
 var log logr.Logger = ctrl.Log.WithName("azure")
 
-// GetVMInstanceName gets current vmss/availability set instance name
-func GetVMInstanceName() (string, error) {
-	// curl -H Metadata:true "http://169.254.169.254/metadata/instance/compute/name?api-version=2019-06-01&format=text"
-	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/instance/compute/name?api-version=2019-06-01&format=text", nil)
+var _ Query = &query{}
+
+// Query interface
+type Query interface {
+	Post(url string, body []byte) error
+	Get(url string) (string, error)
+}
+
+type query struct{}
+
+type Client struct {
+	q Query
+}
+
+func New() *Client {
+	return &Client{
+		q: &query{},
+	}
+}
+
+func (c *query) Post(url string, body []byte) error {
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		return err
+	}
+	req.Header = http.Header{
+		"Metadata": {"true"},
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		log.Error(err, "failed to vm instance name")
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 ||
+		resp.StatusCode > 299 {
+		return errors.Errorf("received non success error code %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *query) Get(url string) (string, error) {
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
 	}
@@ -44,7 +84,14 @@ func GetVMInstanceName() (string, error) {
 		log.Error(err, "failed to read body")
 		return "", err
 	}
+
 	return string(body), nil
+}
+
+// GetVMInstanceName gets current vmss/availability set instance name
+func (c *Client) GetVMInstanceName() (string, error) {
+	// curl -H Metadata:true "http://169.254.169.254/metadata/instance/compute/name?api-version=2019-06-01&format=text"
+	return c.q.Get("http://169.254.169.254/metadata/instance/compute/name?api-version=2019-06-01&format=text")
 }
 
 // {
@@ -79,29 +126,11 @@ type ScheduledEventList struct {
 	Events              []ScheduledEvent `json:"Events"`
 }
 
-func getScheduledEventList() (*ScheduledEventList, error) {
+func (c *Client) getScheduledEventList() (*ScheduledEventList, error) {
 	// curl -H Metadata:true "http://169.254.169.254/metadata/scheduledevents?api-version=2017-08-01"
-	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/scheduledevents?api-version=2017-08-01", nil)
+	body, err := c.q.Get("http://169.254.169.254/metadata/scheduledevents?api-version=2017-08-01")
 	if err != nil {
-		return nil, err
-	}
-	req.Header = http.Header{
-		"Metadata": {"true"},
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Error(err, "failed to vm instance name")
-		return nil, err
-	}
-
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 ||
-		resp.StatusCode > 299 {
-		return nil, errors.Errorf("received non success error code %d", resp.StatusCode)
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Error(err, "failed to read body")
+		log.Error(err, "failed to get scheduled events")
 		return nil, err
 	}
 	result := &ScheduledEventList{}
@@ -114,25 +143,27 @@ func getScheduledEventList() (*ScheduledEventList, error) {
 	return result, nil
 }
 
-func IsScheduledEvent(vmInstanceName string) (bool, error) {
-	result, err := getScheduledEventList()
+// IsScheduledEvent check if event is scheduled and returns the scheduled event, else nil
+func (c *Client) IsScheduledEvent(vmInstanceName string) (string, error) {
+	result, err := c.getScheduledEventList()
 	if err != nil {
-		return false, err
+		return "", err
 	}
 
 	for _, event := range result.Events {
 		if isScheduled(&event) &&
 			isDisruptive(&event) &&
 			isVMScheduled(&event, vmInstanceName) {
-			return true, nil
+			return event.EventType, nil
 		}
 	}
 
-	return false, nil
+	return "", nil
 }
 
-func ApproveScheduledEvent(vmInstanceName string) error {
-	result, err := getScheduledEventList()
+// ApproveScheduledEvent approves scheduled event
+func (c *Client) ApproveScheduledEvent(vmInstanceName string) error {
+	result, err := c.getScheduledEventList()
 	if err != nil {
 		return err
 	}
@@ -141,14 +172,14 @@ func ApproveScheduledEvent(vmInstanceName string) error {
 		if isScheduled(&event) &&
 			isDisruptive(&event) &&
 			isVMScheduled(&event, vmInstanceName) {
-			return approveEvent(&event)
+			return c.approveEvent(&event)
 		}
 	}
 
 	return nil
 }
 
-func approveEvent(event *ScheduledEvent) error {
+func (c *Client) approveEvent(event *ScheduledEvent) error {
 	// curl -H Metadata:true -X POST -d '{"StartRequests": [{"EventId": "F3E6E2D2-E86A-47F0-AA8E-18918049A2B1"}]}' http://169.254.169.254/metadata/scheduledevents?api-version=2017-11-01
 	message := map[string]interface{}{
 		"StartRequests": []map[string]string{
@@ -163,25 +194,8 @@ func approveEvent(event *ScheduledEvent) error {
 		log.Error(err, "failed to marshal message")
 		return err
 	}
-	req, err := http.NewRequest("POST", "http://169.254.169.254/metadata/scheduledevents?api-version=2017-08-01", bytes.NewBuffer(body))
-	if err != nil {
-		return err
-	}
-	req.Header = http.Header{
-		"Metadata": {"true"},
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		log.Error(err, "failed to vm instance name")
-		return err
-	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 ||
-		resp.StatusCode > 299 {
-		return errors.Errorf("received non success error code %d", resp.StatusCode)
-	}
-	return nil
+	return c.q.Post("http://169.254.169.254/metadata/scheduledevents?api-version=2017-08-01", body)
 }
 
 func isDisruptive(event *ScheduledEvent) bool {

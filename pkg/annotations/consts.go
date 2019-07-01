@@ -6,6 +6,8 @@ package annotations
 const (
 	// DrainSafeMaintenance key for maintenance
 	DrainSafeMaintenance string = "drainsafe.azure.com/maintenancestate"
+	// DrainSafeMaintenanceType key for maintenancetype
+	DrainSafeMaintenanceType string = "drainsafe.azure.com/maintenancetype"
 	// Scheduled maintenance is scheduled  on virtual machine
 	Scheduled string = "MaintenanceScheduled"
 	// Cordoning workload scheduling will be disabled on virtual machine
