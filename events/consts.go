@@ -2,15 +2,15 @@ package events
 
 const (
 	// Scheduled maintenance is scheduled  on virtual machine
-	Scheduled string = "Scheduled"
+	Scheduled string = "MaintenanceScheduled"
 	// Cordoned workload scheduling is disabled on virtual machine
-	Cordoned string = "Cordoned"
+	Cordoned string = "NodeCordoned"
 	// Drained workload is drained on virtual machine
-	Drained string = "Drained"
+	Drained string = "NodeDrained"
 	// Started maintenance is started on virtual machine
-	Started string = "Started"
+	Started string = "MaintenanceStarted"
 	// Running maintenance is completed on virtual machine
-	Running string = "Running"
+	Running string = "NodeRunning"
 	// Uncordoned workload scheduling is enabled on virtual machine
-	Uncordoned string = "Uncordoned"
+	Uncordoned string = "NodeUncordoned"
 )

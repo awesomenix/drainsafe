@@ -33,8 +33,6 @@ type ScheduledEventReconciler struct {
 	vmInstanceName string
 }
 
-// +kubebuilder:rbac:groups=,resources=events,verbs=get;list;watch;create;update;patch;delete
-
 // Reconcile consumes event
 func (r *ScheduledEventReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -50,6 +48,22 @@ func (r *ScheduledEventReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 		}
 		log.Error(err, "failed to get event", "NamespacedName", req.NamespacedName.String())
 		return ctrl.Result{}, err
+	}
+
+	if r.pod == nil {
+		namespacedName := types.NamespacedName{
+			Name:      os.Getenv("POD_NAME"),
+			Namespace: os.Getenv("POD_NAMESPACE"),
+		}
+
+		pod := &corev1.Pod{}
+		err = r.Get(context.TODO(), namespacedName, pod)
+		if err != nil {
+			log.Error(err, "failed to get pod", "NamespacedName", namespacedName.String())
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+		}
+		r.pod = pod
+		r.Recorder.Eventf(r.pod, "Normal", events.Running, "%s", r.hostname)
 	}
 
 	if event.Namespace != os.Getenv("POD_NAMESPACE") {
@@ -96,10 +110,6 @@ func (r *ScheduledEventReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *ScheduledEventReconciler) startup() error {
-	namespacedName := types.NamespacedName{
-		Name:      os.Getenv("POD_NAME"),
-		Namespace: os.Getenv("POD_NAMESPACE"),
-	}
 	hostname := os.Getenv("HOSTNAME")
 
 	vmInstanceName, err := getVMInstanceName()
@@ -108,18 +118,9 @@ func (r *ScheduledEventReconciler) startup() error {
 		return err
 	}
 
-	pod := &corev1.Pod{}
-	err = r.Get(context.TODO(), namespacedName, pod)
-	if err != nil {
-		log.Error(err, "failed to get pod", "NamespacedName", namespacedName.String())
-		return err
-	}
-
 	r.hostname = hostname
-	r.pod = pod
 	r.vmInstanceName = vmInstanceName
 
-	r.Recorder.Eventf(pod, "Normal", events.Running, "%s", hostname)
 	return nil
 }
 

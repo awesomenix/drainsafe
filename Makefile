@@ -18,13 +18,8 @@ manager: generate fmt vet
 run: generate fmt vet
 	go run ./main.go
 
-# Install CRDs into a cluster
-install: manifests
-	kubectl apply -f config/crd/bases
-
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests
-	kubectl apply -f config/crd/bases
 	kustomize build config/default | kubectl apply -f -
 
 # Generate manifests e.g. CRD, RBAC etc.
@@ -52,7 +47,9 @@ docker-push:
 	docker push ${IMG}
 	@echo "updating kustomize image patch file for manager resource"
 	sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/manager_image_patch.yaml
+	sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/scheduledevent_manager_image_patch.yaml
 	rm -f config/default/manager_image_patch.yaml-e
+	rm -f config/default/scheduledevent_manager_image_patch.yaml-e
 
 # find or download controller-gen
 # download controller-gen if necessary

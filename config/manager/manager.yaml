@@ -46,6 +46,9 @@ spec:
             fieldRef:
               fieldPath: metadata.name
       terminationGracePeriodSeconds: 10
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -58,7 +61,6 @@ spec:
   selector:
     matchLabels:
       control-plane: controller-manager
-  replicas: 1
   template:
     metadata:
       labels:
@@ -86,3 +88,6 @@ spec:
             fieldRef:
               fieldPath: metadata.name
       terminationGracePeriodSeconds: 10
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
