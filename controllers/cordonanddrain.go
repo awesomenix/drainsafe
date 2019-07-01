@@ -67,10 +67,12 @@ func getOptions(vmName string) (*kubectldrain.DrainCmdOptions, error) {
 
 	f := cmdutil.NewFactory(&RESTConfigClientGetter{Config: cfg})
 	drain := kubectldrain.NewCmdDrain(f, streams)
-	args := []string{vmName}
 	options := kubectldrain.NewDrainCmdOptions(f, streams)
-	drain.SetArgs([]string{"--ignore-daemonsets", "--force", "--delete-local-data", "--grace-period 60"})
-	err = options.Complete(f, drain, args)
+	err = drain.ParseFlags([]string{"--ignore-daemonsets", "--force", "--delete-local-data", "--grace-period=60"})
+	if err != nil {
+		return nil, errors.Wrapf(err, "error parsing flags")
+	}
+	err = options.Complete(f, drain, []string{vmName})
 	if err != nil {
 		return nil, errors.Wrapf(err, "error setting up drain")
 	}
@@ -96,14 +98,23 @@ func Cordon(vmName string) error {
 
 // Drain drains vmname from kubernetes
 func Drain(vmName string) error {
-	options, err := getOptions(vmName)
+	cfg, err := config.GetConfig()
 	if err != nil {
-		return errors.Wrapf(err, "error getting options")
+		return errors.Wrapf(err, "unable to set up client config")
 	}
+
+	streams := genericclioptions.IOStreams{
+		Out:    os.Stdout,
+		ErrOut: os.Stderr,
+	}
+
+	f := cmdutil.NewFactory(&RESTConfigClientGetter{Config: cfg})
+	drain := kubectldrain.NewCmdDrain(f, streams)
+	drain.SetArgs([]string{vmName, "--ignore-daemonsets", "--force", "--delete-local-data", "--grace-period=60"})
 
 	log.Info("Draining", "VMName", vmName)
 
-	err = options.RunDrain()
+	err = drain.Execute()
 	if err != nil {
 		return errors.Wrapf(err, "error draining node")
 	}

@@ -2,10 +2,9 @@ package controllers
 
 import (
 	"context"
-	"os"
 	"time"
 
-	"github.com/awesomenix/drainsafe/events"
+	"github.com/awesomenix/drainsafe/annotations"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,9 +33,8 @@ func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("drainsafe", req.NamespacedName)
 
 	// your logic here
-
-	event := &corev1.Event{}
-	err := r.Get(ctx, req.NamespacedName, event)
+	node := &corev1.Node{}
+	err := r.Get(ctx, req.NamespacedName, node)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -45,43 +43,54 @@ func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, err
 	}
 
-	if event.Namespace != os.Getenv("POD_NAMESPACE") {
+	if node.Annotations == nil {
 		return ctrl.Result{}, nil
 	}
 
-	log.Info("got event",
-		"Name", event.Name,
-		"Namespace", event.Namespace,
-		"Reason", event.Reason,
-		"Message", event.Message,
-		"Type", event.Type,
-		"Timestamp", event.LastTimestamp)
+	log.Info("got update event",
+		"Name", node.Name,
+		"Annotations", node.Annotations)
 
-	if event.Reason == events.Scheduled {
-		err = Cordon(event.Message)
-		if err != nil {
-			log.Error(err, "failed to cordon vm", "error", err)
-			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
-		}
-		r.Recorder.Eventf(event, "Normal", "Cordoned", "%s", event.Message)
+	maintenance := node.Annotations[annotations.DrainSafeMaintenance]
+
+	if maintenance == annotations.Scheduled {
+		return r.updateNodeState(node, annotations.Cordoning)
 	}
 
-	if event.Reason == events.Cordoned {
-		err = Drain(event.Message)
-		if err != nil {
-			log.Error(err, "failed to cordon vm", "error", err)
-			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+	if maintenance == annotations.Cordoning {
+		if !node.Spec.Unschedulable {
+			err = Cordon(node.Name)
+			if err != nil {
+				log.Error(err, "failed to cordon vm")
+				return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+			}
 		}
-		r.Recorder.Eventf(event, "Normal", "Drained", "%s", event.Message)
+		return r.updateNodeState(node, annotations.Cordoned)
 	}
 
-	if event.Reason == events.Running {
-		err = Uncordon(event.Message)
+	if maintenance == annotations.Cordoned {
+		return r.updateNodeState(node, annotations.Draining)
+	}
+
+	if maintenance == annotations.Draining {
+		err = Drain(node.Name)
 		if err != nil {
-			log.Error(err, "failed to cordon vm", "error", err)
+			log.Error(err, "failed to drain vm")
 			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 		}
-		r.Recorder.Eventf(event, "Normal", "Uncordoned", "%s", event.Message)
+		return r.updateNodeState(node, annotations.Drained)
+	}
+
+	if maintenance == annotations.Running {
+		if !node.Spec.Unschedulable {
+			return ctrl.Result{}, nil
+		}
+		err = Uncordon(node.Name)
+		if err != nil {
+			log.Error(err, "failed to cordon vm")
+			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+		}
+		r.Recorder.Eventf(node, "Normal", annotations.Uncordoned, "%s", node.Name)
 	}
 
 	return ctrl.Result{}, nil
@@ -89,6 +98,19 @@ func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 func (r *DrainSafeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Event{}).
+		For(&corev1.Node{}).
 		Complete(r)
+}
+
+func (r *DrainSafeReconciler) updateNodeState(node *corev1.Node, state string) (ctrl.Result, error) {
+	if node.Annotations[annotations.DrainSafeMaintenance] == state {
+		return ctrl.Result{}, nil
+	}
+	node.Annotations[annotations.DrainSafeMaintenance] = state
+	if err := r.Update(context.TODO(), node); err != nil {
+		log.Error(err, "failed to update node")
+		return ctrl.Result{RequeueAfter: 1 * time.Minute}, err
+	}
+	r.Recorder.Eventf(node, "Normal", state, "%s", node.Name)
+	return ctrl.Result{}, nil
 }

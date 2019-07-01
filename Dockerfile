@@ -12,7 +12,7 @@ RUN go mod download
 # Copy the go source
 COPY main.go main.go
 COPY reporter/ reporter/
-COPY events/ events/
+COPY annotations/ annotations/
 COPY controllers/ controllers/
 
 # Build
