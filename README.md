@@ -10,8 +10,6 @@ Azure has a [scheduled events feature](https://docs.microsoft.com/en-us/azure/vi
   - [Safe drain Controller](#Safe-drain-Controller)
   - [Sequence](#Sequence)
   - [Deploy](#Deploy)
-    - [Dependencies](#Dependencies)
-    - [Deploy using Kustomize](#Deploy-using-Kustomize)
 
 ## Design 
 
@@ -51,11 +49,6 @@ We use above event values and annotate the node with current state of actions `d
 
 ### Deploy
 
-#### Dependencies
-
-- kustomize 2.0
-
-#### Deploy using Kustomize
-
-- `git clone https://github.com/awesomenix/drainsafe`
-- `make deploy`
+```
+kubectl apply -f https://raw.githubusercontent.com/awesomenix/drainsafe/master/config/deployment/drainsafe-deployment.yaml
+```
