@@ -9,6 +9,9 @@ Azure has a [scheduled events feature](https://docs.microsoft.com/en-us/azure/vi
   - [Scheduled Events Controller](#Scheduled-Events-Controller)
   - [Safe drain Controller](#Safe-drain-Controller)
   - [Sequence](#Sequence)
+  - [Deploy](#Deploy)
+    - [Dependencies](#Dependencies)
+    - [Deploy using Kustomize](#Deploy-using-Kustomize)
 
 ## Design 
 
@@ -45,3 +48,14 @@ We use above event values and annotate the node with current state of actions `d
 ### Sequence
 
 ![Sequence](./ScheduledEvent.jpg)
+
+### Deploy
+
+#### Dependencies
+
+- kustomize 2.0
+
+#### Deploy using Kustomize
+
+- `git clone https://github.com/awesomenix/drainsafe`
+- `make deploy`
