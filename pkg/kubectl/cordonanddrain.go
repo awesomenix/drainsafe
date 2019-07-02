@@ -3,6 +3,7 @@
 package kubectl
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/go-logr/logr"
@@ -21,7 +22,7 @@ var _ Client = &client{}
 // Client interface for kubernetes
 type Client interface {
 	Cordon(vmName string) error
-	Drain(vmName string) error
+	Drain(vmName string, gracePeriod int) error
 	Uncordon(vmName string) error
 }
 
@@ -48,31 +49,16 @@ func New() (Client, error) {
 	}, nil
 }
 
-func (c *client) getOptions(vmName string) (*kubectldrain.DrainCmdOptions, error) {
-	drain := kubectldrain.NewCmdDrain(c.f, c.streams)
-	options := kubectldrain.NewDrainCmdOptions(c.f, c.streams)
-	err := drain.ParseFlags([]string{"--ignore-daemonsets", "--force", "--delete-local-data", "--grace-period=60"})
-	if err != nil {
-		return nil, errors.Wrapf(err, "error parsing flags")
-	}
-	err = options.Complete(c.f, drain, []string{vmName})
-	if err != nil {
-		return nil, errors.Wrapf(err, "error setting up drain")
-	}
-
-	return options, nil
-}
-
 // Cordon cordons  vmname from kubernetes
 func (c *client) Cordon(vmName string) error {
-	options, err := c.getOptions(vmName)
-	if err != nil {
-		return errors.Wrapf(err, "error getting options")
+	cordon := kubectldrain.NewCmdCordon(c.f, c.streams)
+	options := kubectldrain.NewDrainCmdOptions(c.f, c.streams)
+	if err := options.Complete(c.f, cordon, []string{vmName}); err != nil {
+		return errors.Wrapf(err, "error setting up cordon")
 	}
 
 	log.Info("Cordon", "VMName", vmName)
-	err = options.RunCordonOrUncordon(true)
-	if err != nil {
+	if err := options.RunCordonOrUncordon(true); err != nil {
 		return errors.Wrapf(err, "error cordoning node")
 	}
 
@@ -80,25 +66,12 @@ func (c *client) Cordon(vmName string) error {
 }
 
 // Drain drains vmname from kubernetes
-func (c *client) Drain(vmName string) error {
-	cfg, err := config.GetConfig()
-	if err != nil {
-		return errors.Wrapf(err, "unable to set up client config")
-	}
-
-	streams := genericclioptions.IOStreams{
-		Out:    os.Stdout,
-		ErrOut: os.Stderr,
-	}
-
-	f := cmdutil.NewFactory(&RESTConfigClientGetter{Config: cfg})
-	drain := kubectldrain.NewCmdDrain(f, streams)
-	drain.SetArgs([]string{vmName, "--ignore-daemonsets", "--force", "--delete-local-data", "--grace-period=60"})
+func (c *client) Drain(vmName string, gracePeriod int) error {
+	drain := kubectldrain.NewCmdDrain(c.f, c.streams)
+	drain.SetArgs([]string{vmName, "--ignore-daemonsets", "--force", "--delete-local-data", fmt.Sprintf("--grace-period=%d", gracePeriod)})
 
 	log.Info("Draining", "VMName", vmName)
-
-	err = drain.Execute()
-	if err != nil {
+	if err := drain.Execute(); err != nil {
 		return errors.Wrapf(err, "error draining node")
 	}
 
@@ -107,14 +80,14 @@ func (c *client) Drain(vmName string) error {
 
 // Uncordon uncordons vmname from kubernetes
 func (c *client) Uncordon(vmName string) error {
-	options, err := c.getOptions(vmName)
-	if err != nil {
-		return errors.Wrapf(err, "error getting options")
+	cordon := kubectldrain.NewCmdCordon(c.f, c.streams)
+	options := kubectldrain.NewDrainCmdOptions(c.f, c.streams)
+	if err := options.Complete(c.f, cordon, []string{vmName}); err != nil {
+		return errors.Wrapf(err, "error setting up cordon")
 	}
 
 	log.Info("Uncordon", "VMName", vmName)
-	err = options.RunCordonOrUncordon(false)
-	if err != nil {
+	if err := options.RunCordonOrUncordon(false); err != nil {
 		return errors.Wrapf(err, "error cordoning node")
 	}
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/awesomenix/drainsafe/pkg/annotations"
 	"github.com/awesomenix/drainsafe/pkg/controllers"
+	"github.com/awesomenix/drainsafe/pkg/kubectl"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -19,6 +20,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
+
+var _ kubectl.Client = &fakeKubeClient{}
 
 type fakeKubeClient struct {
 	cordonerr   error
@@ -30,7 +33,7 @@ func (f *fakeKubeClient) Cordon(vmName string) error {
 	return f.cordonerr
 }
 
-func (f *fakeKubeClient) Drain(vmName string) error {
+func (f *fakeKubeClient) Drain(vmName string, gracePeriod int) error {
 	return f.drainerr
 }
 

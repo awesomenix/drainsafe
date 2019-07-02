@@ -110,7 +110,8 @@ func (r *DrainSafeReconciler) ProcessNodeEvent(c kubectl.Client, node *corev1.No
 	}
 
 	if maintenance == annotations.Draining {
-		if err := c.Drain(node.Name); err != nil {
+		maintenanceType := node.Annotations[annotations.DrainSafeMaintenanceType]
+		if err := c.Drain(node.Name, getGraceTimeoutPeriod(maintenanceType)); err != nil {
 			log.Error(err, "failed to drain vm")
 			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 		}
@@ -129,4 +130,16 @@ func (r *DrainSafeReconciler) ProcessNodeEvent(c kubectl.Client, node *corev1.No
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func getGraceTimeoutPeriod(maintenanceType string) int {
+	switch maintenanceType {
+	case "Reboot", "Freeze":
+		return 840
+	case "Redeploy":
+		return 540
+	case "Preempt":
+		return 15
+	}
+	return 60
 }
