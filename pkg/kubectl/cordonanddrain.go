@@ -20,8 +20,8 @@ var _ Client = &client{}
 
 // Client interface for kubernetes
 type Client interface {
-	Drain(vmName string) error
 	Cordon(vmName string) error
+	Drain(vmName string) error
 	Uncordon(vmName string) error
 }
 

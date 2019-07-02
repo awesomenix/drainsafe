@@ -24,11 +24,10 @@ type ScheduledEventReconciler struct {
 	client.Client
 	Log            logr.Logger
 	Recorder       record.EventRecorder
-	pod            *corev1.Pod
 	StopCh         <-chan struct{}
-	azClient       *azure.Client
-	hostname       string
-	vmInstanceName string
+	AzClient       *azure.Client
+	Hostname       string
+	VMInstanceName string
 }
 
 // Reconcile consumes event
@@ -62,15 +61,15 @@ func (r *ScheduledEventReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *ScheduledEventReconciler) startup() error {
 	hostname := os.Getenv("NODE_NAME")
 
-	r.azClient = azure.New()
-	vmInstanceName, err := r.azClient.GetVMInstanceName()
+	r.AzClient = azure.New()
+	vmInstanceName, err := r.AzClient.GetVMInstanceName()
 	if err != nil {
 		r.Log.Error(err, "failed to get vm instance name")
 		return err
 	}
 
-	r.hostname = hostname
-	r.vmInstanceName = vmInstanceName
+	r.Hostname = hostname
+	r.VMInstanceName = vmInstanceName
 
 	go r.eventWatcher()
 
@@ -134,7 +133,7 @@ func (r *ScheduledEventReconciler) ProcessNodeEvent(node *corev1.Node) (ctrl.Res
 		"Annotations", node.Annotations)
 
 	if maintenance == annotations.Drained {
-		if err := r.azClient.ApproveScheduledEvent(r.vmInstanceName); err != nil {
+		if err := r.AzClient.ApproveScheduledEvent(r.VMInstanceName); err != nil {
 			log.Error(err, "failed to approve scheduled event")
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 		}
@@ -147,12 +146,12 @@ func (r *ScheduledEventReconciler) ProcessNodeEvent(node *corev1.Node) (ctrl.Res
 // ProcessScheduledEvent process scheduled event.
 func (r *ScheduledEventReconciler) ProcessScheduledEvent() error {
 	node := &corev1.Node{}
-	if err := r.Get(context.TODO(), types.NamespacedName{Name: r.hostname}, node); err != nil {
-		r.Log.Error(err, "failed to get node", "Name", r.hostname)
+	if err := r.Get(context.TODO(), types.NamespacedName{Name: r.Hostname}, node); err != nil {
+		r.Log.Error(err, "failed to get node", "Name", r.Hostname)
 		return err
 	}
 	maintenance := node.Annotations[annotations.DrainSafeMaintenance]
-	isScheduled, err := r.azClient.IsScheduledEvent(r.vmInstanceName)
+	isScheduled, err := r.AzClient.IsScheduledEvent(r.VMInstanceName)
 	if err != nil {
 		r.Log.Error(err, "failed to find scheduled events")
 		return err
@@ -162,9 +161,9 @@ func (r *ScheduledEventReconciler) ProcessScheduledEvent() error {
 			r.Log.Info("node is under going maintenance, skipping setting annotation", "Maintenance", maintenance)
 			return nil
 		}
-		r.updateNodeStateWithType(node, annotations.Scheduled, isScheduled)
-		return nil
+		_, err = r.updateNodeStateWithType(node, annotations.Scheduled, isScheduled)
+		return err
 	}
-	r.updateNodeStateWithType(node, annotations.Running, "")
-	return nil
+	_, err = r.updateNodeStateWithType(node, annotations.Running, "")
+	return err
 }

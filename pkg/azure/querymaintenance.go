@@ -37,6 +37,12 @@ func New() *Client {
 	}
 }
 
+func NewWithQuery(q Query) *Client {
+	return &Client{
+		q: q,
+	}
+}
+
 func (c *query) Post(url string, body []byte) error {
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
 	if err != nil {
