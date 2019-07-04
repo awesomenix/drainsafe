@@ -7,7 +7,9 @@ import (
 	"os"
 
 	"github.com/awesomenix/drainsafe/pkg/controllers"
+	repairmanv1 "github.com/awesomenix/repairman/pkg/api/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -20,8 +22,9 @@ var (
 )
 
 func init() {
-
 	corev1.AddToScheme(scheme)
+	repairmanv1.AddToScheme(scheme)
+	apiextensions.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
 

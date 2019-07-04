@@ -10,6 +10,10 @@ const (
 	DrainSafeMaintenanceType string = "drainsafe.azure.com/maintenancetype"
 	// Scheduled maintenance is scheduled  on virtual machine
 	Scheduled string = "MaintenanceScheduled"
+	// MaintenancePending gets maintenance approval from repairman to coordinate repairs
+	MaintenancePending string = "MaintenancePending"
+	// MaintenanceApproved marked when maintenance is approved by repairman
+	MaintenanceApproved string = "MaintenanceApproved"
 	// Cordoning workload scheduling will be disabled on virtual machine
 	Cordoning string = "NodeCordoning"
 	// Cordoned workload scheduling is disabled on virtual machine

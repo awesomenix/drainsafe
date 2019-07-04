@@ -9,6 +9,8 @@ import (
 
 	"github.com/awesomenix/drainsafe/pkg/annotations"
 	"github.com/awesomenix/drainsafe/pkg/kubectl"
+	repairmanv1 "github.com/awesomenix/repairman/pkg/api/v1"
+	repairmanclient "github.com/awesomenix/repairman/pkg/client"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,6 +27,8 @@ type DrainSafeReconciler struct {
 	Recorder record.EventRecorder
 }
 
+// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=repairman.k8s.io,resources=maintenancerequests,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=extensions,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
@@ -53,7 +57,22 @@ func (r *DrainSafeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 	}
 
-	return r.ProcessNodeEvent(c, node)
+	// check if repairman is enabled,
+	rclient, err := repairmanclient.New(os.Getenv("POD_NAMESPACE"), r.Client)
+	if err != nil {
+		log.Error(err, "failed to create repairman client")
+		return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+	}
+	isEnabled, err := rclient.IsEnabled("node")
+	if err != nil {
+		log.Error(err, "failed to check if repairman is enabled")
+		return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+	}
+	if !isEnabled {
+		rclient = nil
+	}
+
+	return r.ProcessNodeEvent(c, rclient, node)
 }
 
 // SetupWithManager called from maanger to register reconciler
@@ -77,8 +96,29 @@ func (r *DrainSafeReconciler) updateNodeState(node *corev1.Node, state string) (
 	return ctrl.Result{}, nil
 }
 
+func (r *DrainSafeReconciler) getMaintenanceApproval(log logr.Logger, rclient *repairmanclient.Client, node *corev1.Node) (ctrl.Result, error) {
+	if rclient == nil {
+		return r.updateNodeState(node, annotations.MaintenanceApproved)
+	}
+	log.Info("maintenance approval", "Name", node.Name)
+	isApproved, err := rclient.IsMaintenanceApproved(context.TODO(), node.Name, "node")
+	if err != nil {
+		log.Error(err, "failed to get maintenance approval from repairman")
+		return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+	}
+	if isApproved {
+		err = rclient.UpdateMaintenanceState(context.TODO(), node.Name, "node", repairmanv1.InProgress)
+		if err != nil {
+			log.Error(err, "failed to mark maintenance in progress in repairman")
+			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+		}
+		return r.updateNodeState(node, annotations.MaintenanceApproved)
+	}
+	return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+}
+
 // ProcessNodeEvent processes node event
-func (r *DrainSafeReconciler) ProcessNodeEvent(c kubectl.Client, node *corev1.Node) (ctrl.Result, error) {
+func (r *DrainSafeReconciler) ProcessNodeEvent(c kubectl.Client, rclient *repairmanclient.Client, node *corev1.Node) (ctrl.Result, error) {
 	if node.Annotations == nil {
 		return ctrl.Result{}, nil
 	}
@@ -92,6 +132,10 @@ func (r *DrainSafeReconciler) ProcessNodeEvent(c kubectl.Client, node *corev1.No
 		"Annotations", node.Annotations)
 
 	if maintenance == annotations.Scheduled {
+		return r.getMaintenanceApproval(log, rclient, node)
+	}
+
+	if maintenance == annotations.MaintenanceApproved {
 		return r.updateNodeState(node, annotations.Cordoning)
 	}
 
@@ -121,6 +165,10 @@ func (r *DrainSafeReconciler) ProcessNodeEvent(c kubectl.Client, node *corev1.No
 	if maintenance == annotations.Running {
 		if !node.Spec.Unschedulable {
 			return ctrl.Result{}, nil
+		}
+		if err := rclient.UpdateMaintenanceState(context.TODO(), node.Name, "node", repairmanv1.Completed); err != nil {
+			log.Error(err, "failed to mark maintenance in progress in repairman")
+			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 		}
 		if err := c.Uncordon(node.Name); err != nil {
 			log.Error(err, "failed to cordon vm")

@@ -11,10 +11,14 @@ import (
 	"github.com/awesomenix/drainsafe/pkg/annotations"
 	"github.com/awesomenix/drainsafe/pkg/controllers"
 	"github.com/awesomenix/drainsafe/pkg/kubectl"
+	repairmanv1 "github.com/awesomenix/repairman/pkg/api/v1"
+	repairmanclient "github.com/awesomenix/repairman/pkg/client"
+	repairmantest "github.com/awesomenix/repairman/pkg/test"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -44,6 +48,7 @@ func (f *fakeKubeClient) Uncordon(vmName string) error {
 func TestNoAnnotations(t *testing.T) {
 	assert := assert.New(t)
 	corev1.AddToScheme(scheme.Scheme)
+	repairmanv1.AddToScheme(scheme.Scheme)
 	f := fake.NewFakeClient()
 
 	reconciler := &controllers.DrainSafeReconciler{
@@ -57,7 +62,7 @@ func TestNoAnnotations(t *testing.T) {
 			Annotations: make(map[string]string),
 		},
 	}
-	_, err := reconciler.ProcessNodeEvent(&fakeKubeClient{}, node)
+	_, err := reconciler.ProcessNodeEvent(&fakeKubeClient{}, nil, node)
 	assert.Nil(err)
 	assert.Equal(len(node.Annotations), 0)
 }
@@ -66,6 +71,7 @@ func TestReconcile(t *testing.T) {
 	assert := assert.New(t)
 	f := fake.NewFakeClient()
 	corev1.AddToScheme(scheme.Scheme)
+	repairmanv1.AddToScheme(scheme.Scheme)
 	reconciler := &controllers.DrainSafeReconciler{
 		Client:   f,
 		Recorder: &record.FakeRecorder{},
@@ -81,14 +87,66 @@ func TestReconcile(t *testing.T) {
 	err := f.Create(context.TODO(), node)
 	assert.Nil(err)
 	node.Annotations[annotations.DrainSafeMaintenance] = annotations.Scheduled
-	for _, state := range []string{annotations.Cordoning, annotations.Cordoned, annotations.Draining, annotations.Drained} {
-		res, err := reconciler.ProcessNodeEvent(&fakeKubeClient{}, node)
+	for _, state := range []string{
+		annotations.MaintenanceApproved,
+		annotations.Cordoning,
+		annotations.Cordoned,
+		annotations.Draining,
+		annotations.Drained} {
+		res, err := reconciler.ProcessNodeEvent(&fakeKubeClient{}, nil, node)
 		assert.Nil(err)
 		assert.Equal(res, ctrl.Result{})
 		assert.Equal(state, node.Annotations[annotations.DrainSafeMaintenance])
 	}
 	node.Annotations[annotations.DrainSafeMaintenance] = annotations.Running
 	node.Spec.Unschedulable = true
-	res, err := reconciler.ProcessNodeEvent(&fakeKubeClient{uncordonerr: errors.New("error")}, node)
+	res, err := reconciler.ProcessNodeEvent(&fakeKubeClient{uncordonerr: errors.New("error")}, nil, node)
+	assert.Equal(res, ctrl.Result{RequeueAfter: 1 * time.Minute})
+}
+
+func TestReconcileWithRepairMan(t *testing.T) {
+	assert := assert.New(t)
+	f := fake.NewFakeClient()
+	corev1.AddToScheme(scheme.Scheme)
+	repairmanv1.AddToScheme(scheme.Scheme)
+
+	repairmantest.ReconcileML(f, assert)
+
+	reconciler := &controllers.DrainSafeReconciler{
+		Client:   f,
+		Recorder: &record.FakeRecorder{},
+		Log:      ctrl.Log,
+	}
+
+	rclient := &repairmanclient.Client{
+		Name:       "fakeName",
+		Client:     f,
+		NewRequest: repairmantest.NewRequest,
+	}
+
+	node := &corev1.Node{}
+	err := f.Get(context.TODO(), types.NamespacedName{Name: "dummynode0"}, node)
+	assert.Nil(err)
+	node.Annotations = make(map[string]string)
+	node.Annotations[annotations.DrainSafeMaintenance] = annotations.Scheduled
+	res, err := reconciler.ProcessNodeEvent(&fakeKubeClient{}, rclient, node)
+	assert.Nil(err)
+	assert.Equal(res, ctrl.Result{RequeueAfter: 1 * time.Minute})
+	assert.NotEqual(annotations.MaintenanceApproved, node.Annotations[annotations.DrainSafeMaintenance])
+	repairmantest.ReconcileMR(f)
+	for _, state := range []string{
+		annotations.MaintenanceApproved,
+		annotations.Cordoning,
+		annotations.Cordoned,
+		annotations.Draining,
+		annotations.Drained} {
+		res, err := reconciler.ProcessNodeEvent(&fakeKubeClient{}, rclient, node)
+		assert.Nil(err)
+		assert.Equal(res, ctrl.Result{})
+		assert.Equal(state, node.Annotations[annotations.DrainSafeMaintenance])
+	}
+	node.Annotations[annotations.DrainSafeMaintenance] = annotations.Running
+	node.Spec.Unschedulable = true
+	res, err = reconciler.ProcessNodeEvent(&fakeKubeClient{uncordonerr: errors.New("error")}, rclient, node)
 	assert.Equal(res, ctrl.Result{RequeueAfter: 1 * time.Minute})
 }

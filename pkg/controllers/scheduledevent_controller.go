@@ -5,6 +5,7 @@ package controllers
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/awesomenix/drainsafe/pkg/annotations"
@@ -32,6 +33,10 @@ type ScheduledEventReconciler struct {
 
 // Reconcile consumes event
 func (r *ScheduledEventReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+	if !strings.EqualFold(req.Name, r.Hostname) {
+		return ctrl.Result{}, nil
+	}
+
 	ctx := context.Background()
 	log := r.Log.WithValues("node", req.NamespacedName)
 

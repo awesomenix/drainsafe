@@ -10,6 +10,7 @@ import (
 	"github.com/awesomenix/drainsafe/pkg/annotations"
 	"github.com/awesomenix/drainsafe/pkg/azure"
 	"github.com/awesomenix/drainsafe/pkg/controllers"
+	repairmanv1 "github.com/awesomenix/repairman/pkg/api/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,6 +57,7 @@ func TestProcessScheduledEvent(t *testing.T) {
 	assert := assert.New(t)
 	f := fake.NewFakeClient()
 	corev1.AddToScheme(scheme.Scheme)
+	repairmanv1.AddToScheme(scheme.Scheme)
 	tQuery := &testQuery{get: scheduledevent}
 	c := azure.NewWithQuery(tQuery)
 
@@ -89,6 +91,7 @@ func TestProcessNodeEvent(t *testing.T) {
 	assert := assert.New(t)
 	f := fake.NewFakeClient()
 	corev1.AddToScheme(scheme.Scheme)
+	repairmanv1.AddToScheme(scheme.Scheme)
 	tQuery := &testQuery{get: scheduledevent}
 	c := azure.NewWithQuery(tQuery)
 
