@@ -166,9 +166,11 @@ func (r *DrainSafeReconciler) ProcessNodeEvent(c kubectl.Client, rclient *repair
 		if !node.Spec.Unschedulable {
 			return ctrl.Result{}, nil
 		}
-		if err := rclient.UpdateMaintenanceState(context.TODO(), node.Name, "node", repairmanv1.Completed); err != nil {
-			log.Error(err, "failed to mark maintenance in progress in repairman")
-			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+		if rclient != nil {
+			if err := rclient.UpdateMaintenanceState(context.TODO(), node.Name, "node", repairmanv1.Completed); err != nil {
+				log.Error(err, "failed to mark maintenance in progress in repairman")
+				return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+			}
 		}
 		if err := c.Uncordon(node.Name); err != nil {
 			log.Error(err, "failed to cordon vm")
