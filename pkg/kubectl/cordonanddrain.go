@@ -70,12 +70,16 @@ func (c *client) Drain(vmName string, gracePeriod int) error {
 	drain := kubectldrain.NewCmdDrain(c.f, c.streams)
 	drain.SetArgs([]string{vmName, "--ignore-daemonsets", "--force", "--delete-local-data", fmt.Sprintf("--grace-period=%d", gracePeriod)})
 
+	var drainErr error
+	cmdutil.BehaviorOnFatal(func(msg string, code int) {
+		drainErr = errors.Errorf("returned code %d, %s", code, msg)
+	})
 	log.Info("Draining", "VMName", vmName)
 	if err := drain.Execute(); err != nil {
 		return errors.Wrapf(err, "error draining node")
 	}
 
-	return nil
+	return drainErr
 }
 
 // Uncordon uncordons vmname from kubernetes
