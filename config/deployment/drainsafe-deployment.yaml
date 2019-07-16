@@ -46,10 +46,6 @@ rules:
   - get
   - list
   - watch
-  - create
-  - update
-  - patch
-  - delete
 - apiGroups:
   - repairman.k8s.io
   resources:
@@ -70,10 +66,8 @@ rules:
   - get
   - list
   - watch
-  - create
   - update
   - patch
-  - delete
 - apiGroups:
   - apps
   resources:
@@ -81,11 +75,6 @@ rules:
   verbs:
   - get
   - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
 - apiGroups:
   - extensions
   resources:
@@ -93,11 +82,6 @@ rules:
   verbs:
   - get
   - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
 - apiGroups:
   - ""
   resources:
@@ -105,11 +89,6 @@ rules:
   verbs:
   - get
   - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
 - apiGroups:
   - ""
   resources:
@@ -133,7 +112,6 @@ rules:
   - create
   - update
   - patch
-  - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
