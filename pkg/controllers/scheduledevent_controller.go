@@ -82,7 +82,7 @@ func (r *ScheduledEventReconciler) startup() error {
 }
 
 func (r *ScheduledEventReconciler) eventWatcher() {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
