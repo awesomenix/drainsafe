@@ -128,8 +128,7 @@ func (r *DrainSafeReconciler) ProcessNodeEvent(c kubectl.Client, rclient *repair
 
 	log.Info("got node event",
 		"Name", node.Name,
-		"Maintenance", maintenance,
-		"Annotations", node.Annotations)
+		"Maintenance", maintenance)
 
 	if maintenance == annotations.Scheduled {
 		return r.getMaintenanceApproval(log, rclient, node)

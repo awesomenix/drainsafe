@@ -82,7 +82,7 @@ func (r *ScheduledEventReconciler) startup() error {
 }
 
 func (r *ScheduledEventReconciler) eventWatcher() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(25 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -134,8 +134,7 @@ func (r *ScheduledEventReconciler) ProcessNodeEvent(node *corev1.Node) (ctrl.Res
 
 	log.Info("got update event",
 		"Name", node.Name,
-		"Maintenance", maintenance,
-		"Annotations", node.Annotations)
+		"Maintenance", maintenance)
 
 	if maintenance == annotations.Drained {
 		if err := r.AzClient.ApproveScheduledEvent(r.VMInstanceName); err != nil {
