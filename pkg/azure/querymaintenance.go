@@ -205,9 +205,13 @@ func (c *Client) approveEvent(event *ScheduledEvent) error {
 }
 
 func isDisruptive(event *ScheduledEvent) bool {
-	return event.EventType == "Reboot" ||
-		event.EventType == "Redeploy" ||
-		event.EventType == "Preempt"
+	if strings.EqualFold(event.EventType, "Reboot") ||
+		strings.EqualFold(event.EventType, "Redeploy") ||
+		strings.EqualFold(event.EventType, "Preempt") ||
+		strings.EqualFold(event.EventType, "Terminate") {
+		return true
+	}
+	return false
 }
 
 func isScheduled(event *ScheduledEvent) bool {
