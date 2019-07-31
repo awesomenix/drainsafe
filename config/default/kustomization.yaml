@@ -20,7 +20,7 @@ bases:
 # [CERTMANAGER] To enable cert-manager, uncomment next line. 'WEBHOOK' components are required.
 #- ../certmanager
 
-patches:
+patchesStrategicMerge:
 - manager_image_patch.yaml
 - scheduledevent_manager_image_patch.yaml
   # Protect the /metrics endpoint by putting it behind auth.
