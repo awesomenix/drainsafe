@@ -39,25 +39,16 @@ metadata:
   name: drainsafe-manager-role
 rules:
 - apiGroups:
-  - apiextensions.k8s.io
+  - ""
   resources:
-  - customresourcedefinitions
+  - events
   verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - repairman.k8s.io
-  resources:
-  - maintenancerequests
-  verbs:
-  - get
-  - list
-  - watch
   - create
-  - update
+  - get
+  - list
   - patch
-  - delete
+  - update
+  - watch
 - apiGroups:
   - ""
   resources:
@@ -65,9 +56,36 @@ rules:
   verbs:
   - get
   - list
-  - watch
-  - update
   - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - pods/eviction
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - apps
   resources:
@@ -83,35 +101,17 @@ rules:
   - get
   - list
 - apiGroups:
-  - ""
+  - repairman.k8s.io
   resources:
-  - pods
+  - maintenancerequests
   verbs:
-  - get
-  - list
-- apiGroups:
-  - ""
-  resources:
-  - pods/eviction
-  verbs:
-  - get
-  - list
-  - watch
   - create
-  - update
-  - patch
   - delete
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
   - get
   - list
-  - watch
-  - create
-  - update
   - patch
+  - update
+  - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
