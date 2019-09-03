@@ -161,7 +161,8 @@ func (r *ScheduledEventReconciler) ProcessScheduledEvent() error {
 		return err
 	}
 	if len(isScheduled) != 0 {
-		if maintenance != annotations.Running {
+		if maintenance != "" &&
+			maintenance != annotations.Running {
 			r.Log.Info("node is under going maintenance, skipping setting annotation", "Maintenance", maintenance)
 			return nil
 		}
