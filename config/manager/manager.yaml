@@ -22,6 +22,7 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
+      priorityClassName: system-cluster-critical
       containers:
       - command:
         - /manager
@@ -51,8 +52,7 @@ spec:
               fieldPath: spec.nodeName
       terminationGracePeriodSeconds: 10
       tolerations:
-      - effect: NoSchedule
-        key: node-role.kubernetes.io/master
+      - operator: "Exists"
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -70,6 +70,7 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
+      priorityClassName: system-node-critical
       containers:
       - command:
         - /scheduledevent-manager
@@ -97,5 +98,4 @@ spec:
               fieldPath: spec.nodeName
       terminationGracePeriodSeconds: 10
       tolerations:
-      - effect: NoSchedule
-        key: node-role.kubernetes.io/master
+      - operator: "Exists"

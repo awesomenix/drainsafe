@@ -239,10 +239,10 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
+      priorityClassName: system-cluster-critical
       terminationGracePeriodSeconds: 10
       tolerations:
-      - effect: NoSchedule
-        key: node-role.kubernetes.io/master
+      - operator: Exists
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -285,7 +285,7 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
+      priorityClassName: system-node-critical
       terminationGracePeriodSeconds: 10
       tolerations:
-      - effect: NoSchedule
-        key: node-role.kubernetes.io/master
+      - operator: Exists
