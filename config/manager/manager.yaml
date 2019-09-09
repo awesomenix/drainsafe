@@ -22,7 +22,6 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
-      priorityClassName: system-cluster-critical
       containers:
       - command:
         - /manager
@@ -70,7 +69,6 @@ spec:
       labels:
         control-plane: controller-manager
     spec:
-      priorityClassName: system-node-critical
       containers:
       - command:
         - /scheduledevent-manager
