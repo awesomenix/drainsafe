@@ -8,9 +8,9 @@ import (
 
 	"testing"
 
-	"github.com/awesomenix/drainsafe/pkg/annotations"
-	"github.com/awesomenix/drainsafe/pkg/controllers"
-	"github.com/awesomenix/drainsafe/pkg/kubectl"
+	"github.com/awesomenix/drainsafe/annotations"
+	"github.com/awesomenix/drainsafe/controllers"
+	"github.com/awesomenix/drainsafe/kubectl"
 	repairmanv1 "github.com/awesomenix/repairman/pkg/api/v1"
 	repairmanclient "github.com/awesomenix/repairman/pkg/client"
 	repairmantest "github.com/awesomenix/repairman/pkg/test"
@@ -101,6 +101,7 @@ func TestReconcile(t *testing.T) {
 	node.Annotations[annotations.DrainSafeMaintenance] = annotations.Running
 	node.Spec.Unschedulable = true
 	res, err := reconciler.ProcessNodeEvent(&fakeKubeClient{uncordonerr: errors.New("error")}, nil, node)
+	assert.Nil(err)
 	assert.Equal(res, ctrl.Result{RequeueAfter: 1 * time.Minute})
 }
 
@@ -148,5 +149,6 @@ func TestReconcileWithRepairMan(t *testing.T) {
 	node.Annotations[annotations.DrainSafeMaintenance] = annotations.Running
 	node.Spec.Unschedulable = true
 	res, err = reconciler.ProcessNodeEvent(&fakeKubeClient{uncordonerr: errors.New("error")}, rclient, node)
+	assert.Nil(err)
 	assert.Equal(res, ctrl.Result{RequeueAfter: 1 * time.Minute})
 }

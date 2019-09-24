@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/awesomenix/drainsafe/pkg/azure"
+	"github.com/awesomenix/drainsafe/azure"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -52,7 +52,7 @@ func TestGetVMInstanceName(t *testing.T) {
 	assert.Equal(vmName, "dummyvmname")
 	assert.Nil(err)
 	tQuery.getErr = errors.New("dummyerror")
-	vmName, err = c.GetVMInstanceName()
+	_, err = c.GetVMInstanceName()
 	assert.NotNil(err)
 }
 

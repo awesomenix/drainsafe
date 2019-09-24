@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license.
+
 package azure
 
 import (
@@ -27,22 +28,26 @@ type Query interface {
 
 type query struct{}
 
+// Client query maintenance client
 type Client struct {
 	q Query
 }
 
+// New create query maintenance client
 func New() *Client {
 	return &Client{
 		q: &query{},
 	}
 }
 
+// NewWithQuery create query maintenance client with query override
 func NewWithQuery(q Query) *Client {
 	return &Client{
 		q: q,
 	}
 }
 
+// Post url with body
 func (c *query) Post(url string, body []byte) error {
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
 	if err != nil {
@@ -65,6 +70,7 @@ func (c *query) Post(url string, body []byte) error {
 	return nil
 }
 
+// Get url
 func (c *query) Get(url string) (string, error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -189,7 +195,7 @@ func (c *Client) approveEvent(event *ScheduledEvent) error {
 	// curl -H Metadata:true -X POST -d '{"StartRequests": [{"EventId": "F3E6E2D2-E86A-47F0-AA8E-18918049A2B1"}]}' http://169.254.169.254/metadata/scheduledevents?api-version=2017-11-01
 	message := map[string]interface{}{
 		"StartRequests": []map[string]string{
-			map[string]string{
+			{
 				"EventId": event.EventId,
 			},
 		},

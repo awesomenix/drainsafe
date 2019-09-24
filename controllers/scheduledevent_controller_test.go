@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/awesomenix/drainsafe/pkg/annotations"
-	"github.com/awesomenix/drainsafe/pkg/azure"
-	"github.com/awesomenix/drainsafe/pkg/controllers"
+	"github.com/awesomenix/drainsafe/annotations"
+	"github.com/awesomenix/drainsafe/azure"
+	"github.com/awesomenix/drainsafe/controllers"
 	repairmanv1 "github.com/awesomenix/repairman/pkg/api/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"

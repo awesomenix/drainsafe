@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license.
+
 package controllers
 
 import (
@@ -7,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/awesomenix/drainsafe/pkg/annotations"
-	"github.com/awesomenix/drainsafe/pkg/kubectl"
+	"github.com/awesomenix/drainsafe/annotations"
+	"github.com/awesomenix/drainsafe/kubectl"
 	repairmanv1 "github.com/awesomenix/repairman/pkg/api/v1"
 	repairmanclient "github.com/awesomenix/repairman/pkg/client"
 	"github.com/go-logr/logr"

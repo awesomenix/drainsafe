@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT license.
+
 package controllers
 
 import (
@@ -8,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/awesomenix/drainsafe/pkg/annotations"
-	"github.com/awesomenix/drainsafe/pkg/azure"
+	"github.com/awesomenix/drainsafe/annotations"
+	"github.com/awesomenix/drainsafe/azure"
 	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
