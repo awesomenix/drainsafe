@@ -16,8 +16,8 @@ require (
 	k8s.io/apimachinery v0.0.0
 	k8s.io/cli-runtime v0.0.0
 	k8s.io/client-go v11.0.1-0.20190409021438-1a26190bd76a+incompatible
+	k8s.io/component-base v0.0.0 // indirect
 	k8s.io/kubectl v0.0.0
-	k8s.io/kubernetes v1.17.0-beta.1
 	sigs.k8s.io/controller-runtime v0.3.1-0.20191105233659-81842d0e78f7
 )
 
