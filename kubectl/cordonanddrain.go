@@ -10,8 +10,8 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	kubectldrain "k8s.io/kubernetes/pkg/kubectl/cmd/drain"
-	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
+	kubectldrain "k8s.io/kubectl/pkg/cmd/drain"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )

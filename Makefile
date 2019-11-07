@@ -8,7 +8,7 @@ PLATFORM := $(shell go env GOOS;)
 ARCH := $(shell go env GOARCH;)
 HAS_KUBEBUILDER := $(shell command -v $(GOBIN)/kubebuilder;)
 HAS_CONTROLLER_GEN := $(shell command -v $(GOBIN)/controller-gen;)
-KUBEBUILDER_VERSION := 2.0.1
+KUBEBUILDER_VERSION := 2.1.0
 CONTROLLER_GEN := $(GOBIN)/controller-gen
 BUILD_DIR := $(CURDIR)
 
@@ -74,6 +74,6 @@ endif
 ifndef HAS_CONTROLLER_GEN
 	cp tools.mod $(GOBIN)/go.mod
 	cp tools.sum $(GOBIN)/go.sum
-	cd $(GOBIN) && GOBIN=$(GOBIN) go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.1
+	cd $(GOBIN) && GOBIN=$(GOBIN) go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.2
 	cd $(BUILD_DIR)
 endif
