@@ -8,6 +8,8 @@ const (
 	DrainSafeMaintenance string = "drainsafe.azure.com/maintenancestate"
 	// DrainSafeMaintenanceType key for maintenancetype
 	DrainSafeMaintenanceType string = "drainsafe.azure.com/maintenancetype"
+	// DrainSafeMaintenanceOwner key for specifying maintenance owner
+	DrainSafeMaintenanceOwner string = "drainsafe.azure.com/maintenanceowner"
 	// Scheduled maintenance is scheduled  on virtual machine
 	Scheduled string = "MaintenanceScheduled"
 	// MaintenancePending gets maintenance approval from repairman to coordinate repairs
@@ -28,4 +30,6 @@ const (
 	Running string = "NodeRunning"
 	// Uncordoned workload scheduling is enabled on virtual machine
 	Uncordoned string = "NodeUncordoned"
+	// Drainsafe marks if the current maintenance owner is drainsafe itself
+	Drainsafe string = "Drainsafe"
 )

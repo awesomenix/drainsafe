@@ -97,12 +97,19 @@ func TestReconcile(t *testing.T) {
 		assert.Nil(err)
 		assert.Equal(res, ctrl.Result{})
 		assert.Equal(state, node.Annotations[annotations.DrainSafeMaintenance])
+		if state == annotations.Cordoned {
+			assert.Equal(node.Annotations[annotations.DrainSafeMaintenanceOwner], annotations.Drainsafe)
+		}
 	}
 	node.Annotations[annotations.DrainSafeMaintenance] = annotations.Running
 	node.Spec.Unschedulable = true
 	res, err := reconciler.ProcessNodeEvent(&fakeKubeClient{uncordonerr: errors.New("error")}, nil, node)
 	assert.Nil(err)
 	assert.Equal(res, ctrl.Result{RequeueAfter: 1 * time.Minute})
+	res, err = reconciler.ProcessNodeEvent(&fakeKubeClient{}, nil, node)
+	assert.Nil(err)
+	assert.Equal(res, ctrl.Result{})
+	assert.Equal(node.Annotations[annotations.DrainSafeMaintenanceOwner], "")
 }
 
 func TestReconcileWithRepairMan(t *testing.T) {

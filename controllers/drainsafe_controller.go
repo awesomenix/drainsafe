@@ -142,6 +142,7 @@ func (r *DrainSafeReconciler) ProcessNodeEvent(c kubectl.Client, rclient *repair
 	}
 
 	if maintenance == annotations.Cordoning {
+		node.Annotations[annotations.DrainSafeMaintenanceOwner] = annotations.Drainsafe
 		if !node.Spec.Unschedulable {
 			if err := c.Cordon(node.Name); err != nil {
 				log.Error(err, "failed to cordon vm")
@@ -174,11 +175,15 @@ func (r *DrainSafeReconciler) ProcessNodeEvent(c kubectl.Client, rclient *repair
 				return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
 			}
 		}
-		if err := c.Uncordon(node.Name); err != nil {
-			log.Error(err, "failed to cordon vm")
-			return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+		if node.Annotations[annotations.DrainSafeMaintenanceOwner] == annotations.Drainsafe {
+			if err := c.Uncordon(node.Name); err != nil {
+				log.Error(err, "failed to cordon vm")
+				return ctrl.Result{RequeueAfter: 1 * time.Minute}, nil
+			}
+			r.Recorder.Eventf(node, "Normal", annotations.Uncordoned, "%s by %s on %s", node.Name, os.Getenv("POD_NAME"), os.Getenv("NODE_NAME"))
+			node.Annotations[annotations.DrainSafeMaintenanceOwner] = ""
+			return r.updateNodeState(node, annotations.Running)
 		}
-		r.Recorder.Eventf(node, "Normal", annotations.Uncordoned, "%s by %s on %s", node.Name, os.Getenv("POD_NAME"), os.Getenv("NODE_NAME"))
 	}
 
 	return ctrl.Result{}, nil
