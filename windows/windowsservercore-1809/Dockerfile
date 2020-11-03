@@ -1,0 +1,34 @@
+# Build the manager binary
+FROM golang:1.14-windowsservercore-1809 as builder
+
+WORKDIR /workspace
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
+
+# Copy the go source
+COPY main.go main.go
+COPY annotations/ annotations/
+COPY azure/ azure/
+COPY controllers/ controllers/
+COPY kubectl/ kubectl/
+COPY scheduledevent/ scheduledevent/
+
+# Build
+ENV CGO_ENABLED 0
+ENV GOOS windows
+ENV GOARCH amd64
+ENV GO111MODULE on
+RUN go build -a -o manager.exe main.go
+RUN go build -a -o scheduledevent-manager.exe scheduledevent/main.go
+
+# Use Nano Server as minimal base image to package the manager binary
+# FROM mcr.microsoft.com/windows/nanoserver:1809
+WORKDIR /
+COPY --from=builder /workspace/manager.exe .
+COPY --from=builder /workspace/scheduledevent-manager.exe .
+
+CMD [ "/manager.exe" ]
