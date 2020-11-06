@@ -26,6 +26,7 @@ RUN go build -a -o manager.exe main.go
 RUN go build -a -o scheduledevent-manager.exe scheduledevent/main.go
 
 # Use Nano Server as minimal base image to package the manager binary
+# TODO: Use Nano Server when golang/go#21867 resolved
 # FROM mcr.microsoft.com/windows/nanoserver:1809
 WORKDIR /
 COPY --from=builder /workspace/manager.exe .
