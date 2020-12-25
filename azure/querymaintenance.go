@@ -139,8 +139,8 @@ type ScheduledEventList struct {
 }
 
 func (c *Client) getScheduledEventList() (*ScheduledEventList, error) {
-	// curl -H Metadata:true "http://169.254.169.254/metadata/scheduledevents?api-version=2017-08-01"
-	body, err := c.q.Get("http://169.254.169.254/metadata/scheduledevents?api-version=2017-08-01")
+	// curl -H Metadata:true "http://169.254.169.254/metadata/scheduledevents?api-version=2019-08-01"
+	body, err := c.q.Get("http://169.254.169.254/metadata/scheduledevents?api-version=2019-08-01")
 	if err != nil {
 		log.Error(err, "failed to get scheduled events")
 		return nil, err
@@ -192,7 +192,7 @@ func (c *Client) ApproveScheduledEvent(vmInstanceName string) error {
 }
 
 func (c *Client) approveEvent(event *ScheduledEvent) error {
-	// curl -H Metadata:true -X POST -d '{"StartRequests": [{"EventId": "F3E6E2D2-E86A-47F0-AA8E-18918049A2B1"}]}' http://169.254.169.254/metadata/scheduledevents?api-version=2017-11-01
+	// curl -H Metadata:true -X POST -d '{"StartRequests": [{"EventId": "F3E6E2D2-E86A-47F0-AA8E-18918049A2B1"}]}' http://169.254.169.254/metadata/scheduledevents?api-version=2019-08-01
 	message := map[string]interface{}{
 		"StartRequests": []map[string]string{
 			{
@@ -207,7 +207,7 @@ func (c *Client) approveEvent(event *ScheduledEvent) error {
 		return err
 	}
 
-	return c.q.Post("http://169.254.169.254/metadata/scheduledevents?api-version=2017-08-01", body)
+	return c.q.Post("http://169.254.169.254/metadata/scheduledevents?api-version=2019-08-01", body)
 }
 
 func isDisruptive(event *ScheduledEvent) bool {
